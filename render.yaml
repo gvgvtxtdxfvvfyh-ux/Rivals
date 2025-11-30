@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: rivals-mht-cet
+    runtime: node
+    plan: free
+    buildCommand: npm run build && npm run db:push
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+    healthCheckPath: /

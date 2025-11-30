@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "functions": {
+    "dist/index.cjs": {
+      "runtime": "nodejs20.x",
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/dist/index.cjs",
+      "methods": ["GET", "POST", "PATCH", "DELETE", "PUT", "OPTIONS"]
+    },
+    {
+      "src": "/uploads/(.*)",
+      "dest": "/dist/index.cjs"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/public/index.html",
+      "status": 200
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
