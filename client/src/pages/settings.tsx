@@ -1,134 +1,279 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { THEME_PALETTES, type ThemeKey, applyTheme } from "@/lib/themes";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-
-interface User {
-  id: string;
-  name: string;
-  theme: string;
-}
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Settings as SettingsIcon,
+  User,
+  Moon,
+  Sun,
+  Upload,
+  Loader2,
+  Mail,
+  Hash,
+  Users,
+  Camera,
+} from "lucide-react";
 
 export default function Settings() {
+  const { user, refetchUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { toast } = useToast();
-  const [selectedTheme, setSelectedTheme] = useState<ThemeKey>("obsidian");
+  const [isUploading, setIsUploading] = useState(false);
 
-  const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/auth/me"],
-  });
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  useEffect(() => {
-    if (user?.theme) {
-      setSelectedTheme((user.theme as ThemeKey) || "obsidian");
-      applyTheme((user.theme as ThemeKey) || "obsidian");
-    }
-  }, [user]);
-
-  const updateThemeMutation = useMutation({
-    mutationFn: async (theme: ThemeKey) => {
-      return await apiRequest("POST", "/api/user/theme", { theme });
-    },
-    onSuccess: () => {
-      applyTheme(selectedTheme);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+    if (!file.type.startsWith("image/")) {
       toast({
-        title: "Theme Updated",
-        description: "Your theme has been changed successfully!",
+        title: "Invalid file",
+        description: "Please upload an image file (JPG, PNG)",
+        variant: "destructive",
       });
-    },
-  });
+      return;
+    }
 
-  const handleThemeChange = (theme: ThemeKey) => {
-    setSelectedTheme(theme);
-    updateThemeMutation.mutate(theme);
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/users/upload-profile-image", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Upload failed");
+      }
+
+      await refetchUser();
+      toast({
+        title: "Profile updated",
+        description: "Your profile image has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  if (isLoading) {
-    return <div className="text-center py-8">Loading themes...</div>;
-  }
-
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold mb-2" data-testid="text-settings-title">
-          Themes
-        </h1>
-        <p className="text-muted-foreground">Choose your favorite color palette</p>
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/10">
+          <SettingsIcon className="w-6 h-6 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold">Settings</h2>
+          <p className="text-sm text-muted-foreground">
+            Manage your profile and preferences
+          </p>
+        </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Theme Customization</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Profile
+          </CardTitle>
           <CardDescription>
-            Choose your favorite color theme. The app will remember your preference!
+            Your personal information and account details
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(THEME_PALETTES).map(([key, theme]) => (
-              <button
-                key={key}
-                onClick={() => handleThemeChange(key as ThemeKey)}
-                className={`relative p-4 rounded-lg border-2 transition-all ${
-                  selectedTheme === key
-                    ? "border-primary bg-card shadow-lg"
-                    : "border-border hover-elevate"
-                }`}
-                data-testid={`button-theme-${key}`}
+        <CardContent className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="relative group">
+              <Avatar className="w-28 h-28 border-4 border-primary/20">
+                <AvatarImage src={user?.profileImageUrl || undefined} alt={user?.name} />
+                <AvatarFallback className="text-3xl bg-primary/10 text-primary">
+                  {user?.userIcon || user?.name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <label
+                htmlFor="profile-image"
+                className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
               >
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <div
-                      className="w-6 h-6 rounded-md border border-border"
-                      style={{
-                        backgroundColor: `hsl(${theme.cssVariables.accent1})`,
-                      }}
-                    />
-                    <div
-                      className="w-6 h-6 rounded-md border border-border"
-                      style={{
-                        backgroundColor: `hsl(${theme.cssVariables.accent2})`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold text-sm" data-testid={`text-theme-name-${key}`}>
-                      {theme.name}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">{theme.description}</p>
-                  </div>
-                </div>
-
-                {selectedTheme === key && (
-                  <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                    <span className="text-white text-xs font-bold">✓</span>
-                  </div>
+                {isUploading ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
                 )}
-              </button>
-            ))}
+              </label>
+              <input
+                id="profile-image"
+                type="file"
+                accept="image/jpeg,image/png,image/jpg"
+                onChange={handleImageUpload}
+                disabled={isUploading}
+                className="hidden"
+                data-testid="input-profile-image"
+              />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="text-xl font-semibold">{user?.name}</h3>
+              <p className="text-muted-foreground">{user?.email}</p>
+              <div className="flex flex-wrap gap-2 mt-3 justify-center sm:justify-start">
+                <Badge variant="secondary" className="gap-1.5">
+                  <Hash className="w-3.5 h-3.5" />
+                  {user?.pwBatchId}
+                </Badge>
+                <Badge variant="secondary" className="gap-1.5 font-mono">
+                  <Users className="w-3.5 h-3.5" />
+                  {user?.rivalCode}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Full Name</Label>
+              <Input value={user?.name || ""} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground flex items-center gap-2">
+                <Mail className="w-4 h-4" />
+                Email
+              </Label>
+              <Input value={user?.email || ""} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground flex items-center gap-2">
+                <Hash className="w-4 h-4" />
+                PW Batch ID
+              </Label>
+              <Input value={user?.pwBatchId || ""} disabled className="bg-muted" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Rival Code
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  value={user?.rivalCode || ""}
+                  disabled
+                  className="bg-muted font-mono"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(user?.rivalCode || "");
+                    toast({
+                      title: "Copied!",
+                      description: "Rival code copied to clipboard",
+                    });
+                  }}
+                  data-testid="button-copy-rival-code"
+                >
+                  Copy
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Account Info</CardTitle>
+          <CardTitle className="text-lg flex items-center gap-2">
+            {theme === "dark" ? (
+              <Moon className="w-5 h-5" />
+            ) : (
+              <Sun className="w-5 h-5" />
+            )}
+            Appearance
+          </CardTitle>
+          <CardDescription>
+            Customize how Rivals looks on your device
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Username</label>
-            <p className="text-lg font-semibold" data-testid="text-account-username">
-              {user && "name" in user ? user.name : "Loading..."}
-            </p>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label>Dark Mode</Label>
+              <p className="text-sm text-muted-foreground">
+                Toggle between light and dark themes
+              </p>
+            </div>
+            <Switch
+              checked={theme === "dark"}
+              onCheckedChange={toggleTheme}
+              data-testid="switch-dark-mode"
+            />
           </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Current Theme</label>
-            <p className="text-lg font-semibold" data-testid="text-account-theme">
-              {THEME_PALETTES[selectedTheme]?.name}
-            </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Upload className="w-5 h-5" />
+            Upload Profile Image
+          </CardTitle>
+          <CardDescription>
+            Update your profile picture (max 5MB, JPG or PNG)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-8 text-center hover:border-primary/50 transition-colors">
+            <input
+              id="profile-image-drop"
+              type="file"
+              accept="image/jpeg,image/png,image/jpg"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+              className="hidden"
+              data-testid="input-profile-image-drop"
+            />
+            <label
+              htmlFor="profile-image-drop"
+              className="cursor-pointer flex flex-col items-center"
+            >
+              {isUploading ? (
+                <Loader2 className="w-10 h-10 text-primary animate-spin mb-3" />
+              ) : (
+                <Upload className="w-10 h-10 text-muted-foreground mb-3" />
+              )}
+              <p className="font-medium">
+                {isUploading ? "Uploading..." : "Click to upload"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                or drag and drop your image here
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                JPG, PNG up to 5MB
+              </p>
+            </label>
           </div>
         </CardContent>
       </Card>

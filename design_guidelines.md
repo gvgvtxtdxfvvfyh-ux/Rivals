@@ -1,177 +1,258 @@
-# Design Guidelines: Rivals - Two-Person Battle Tracker
+# Advanced Rivals MHT-CET Battle Tracker - Design Guidelines
 
-## Design Approach: Hybrid System (Material Dark + Competitive Gaming Aesthetics)
+## Design Approach
 
-**Core Philosophy:** "Precision Combat Interface" - A dark, focused battlefield where every interaction feels consequential. Blend Material Design's clarity with gaming UI's intensity. Think League of Legends client meets Linear's refinement.
+**Hybrid System: Productivity Tool + Competitive Gaming**
 
-**Visual Tone:** Dark, competitive, minimal, with sharp edges and purposeful highlights. Every element should feel like it's carved into a war room display.
+This is a utility-focused competitive learning platform combining:
+- Linear/Notion's clean productivity aesthetics for content organization
+- Duolingo's gamification elements for engagement
+- Real-time competitive elements inspired by live sports dashboards
 
-## Typography
+The design must balance serious study tracking with motivational gaming elements, creating a premium yet energetic experience for exactly two competing users.
 
-**Primary Font:** Inter (Google Fonts)
-- Headings: 600-700 weight, tight letter-spacing (-0.02em)
-- Body: 400 weight for readability
-- Stats/Numbers: 700 weight, tabular-nums for alignment
+**Core Principle**: Clear hierarchy, instant comprehension, competitive energy without distraction.
 
-**Hierarchy:**
-- Page Titles: text-3xl to text-4xl font-bold
-- Section Headers: text-xl to text-2xl font-semibold
-- Stat Numbers: text-4xl to text-6xl font-bold (large impact)
-- Body/Labels: text-sm to text-base
-- Chat Messages: text-sm
-- Small Meta: text-xs (timestamps, hints)
+## Typography System (Inter Font Family)
 
-## Layout System
+**Font Hierarchy:**
+- **Hero/Page Titles**: text-4xl lg:text-5xl, font-bold (48-60px)
+- **Section Headers**: text-2xl lg:text-3xl, font-semibold (30-36px)
+- **Card Titles/Chapter Names**: text-lg font-semibold (18px)
+- **Body Text**: text-base font-normal (16px)
+- **Labels/Metadata**: text-sm font-medium (14px)
+- **Captions/Timestamps**: text-xs text-gray-500 (12px)
 
-**Spacing Primitives:** Use Tailwind units of 2, 4, 6, 8, 12, 16, 20 (p-4, m-8, gap-6, etc.)
+**Competitive Stats (Numbers)**: text-3xl lg:text-5xl font-bold - use tabular numbers for alignment
 
-**Container Strategy:**
-- Page wrapper: max-w-7xl mx-auto px-4 to px-8
-- Dashboard cards: Consistent p-6 to p-8
-- Form sections: p-6
-- Chat container: Fixed height with overflow-scroll
+## Layout & Spacing System
 
-**Grid Patterns:**
-- Dashboard: 2-column split for rival comparison (grid-cols-1 lg:grid-cols-2)
-- Progress stats: 3-column grid for PCM subjects (grid-cols-1 md:grid-cols-3)
-- PW Battle: Single column with expandable subject sections
+**Tailwind Spacing Primitives**: Use 4, 6, 8, 12, 16, 20 units consistently
+- Component padding: p-4 to p-6
+- Section spacing: py-12 lg:py-16
+- Card gaps: gap-4 to gap-6
+- Container max-width: max-w-7xl for main content
+- Narrow content: max-w-4xl for reading text
 
-## Component Library
+**Grid Systems:**
+- Battle Arena chapters: grid-cols-1 lg:grid-cols-2 gap-6
+- Progress comparison: grid-cols-1 md:grid-cols-2 gap-8
+- Achievement badges: grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4
+- Subject stats: grid-cols-3 gap-4
 
-### Navigation
-- Top header bar: Fixed, minimal height (h-16), logo left, user avatar/streak indicator right
-- No sidebar - keep it streamlined
-- Page navigation: Horizontal tabs or minimal side rail if needed
+## Core Component Library
 
-### Dashboard Cards
-- Dual streak display: Side-by-side cards with massive numbers (text-6xl) and flame/trophy icons
-- Bar graph card: Full-width card below streaks showing PCM comparison
-- Visual: Horizontal bars with user icons (🦊 vs ⚡) at bar ends
-- Progress percentages beneath each bar
+### Navigation & Layout
+**Top Navigation Bar:**
+- Fixed header with blurred backdrop (backdrop-blur-sm bg-white/80)
+- Logo/app name on left
+- Nav items centered or right-aligned
+- Profile icon with uploaded image (w-10 h-10 rounded-full)
+- Theme toggle icon button
+- Border bottom with subtle shadow
 
-### Forms (Sign Up/In, Manual Entry)
-- Input fields: Full-width, rounded borders, focus states with subtle glow
-- Labels: Above inputs, text-sm font-medium
-- Rival Code input: Special treatment - larger, centered, with mystery/lock aesthetic
-- Submit buttons: Full-width, bold, with loading states
+**Sidebar Navigation** (for desktop):
+- Fixed left sidebar (w-64) with main sections
+- Active state: Background fill with primary accent
+- Icon + label combination
+- Collapsible on mobile (hamburger menu)
 
-### PW Battle Page Components
-- Subject sections: Collapsible accordions with PCM headers
-- Add lecture/DPP: Inline form that appears on "+ Add" click
-- Checkbox rows: 3-column layout (checkbox | Lecture name | Status icons)
-- Status display: Compact icons showing You ✅ | Rival ❌ or merged ✅✅ when both complete
-- User legend always visible: "You 🦊 | Rival ⚡" in page header
+### Battle Arena Components
 
-### Progress Page
-- Circular progress rings: 3 large circles for PCM (use chart library or CSS conic-gradient)
-- Center of circle: Percentage text-3xl font-bold
-- Below circles: Detailed stats in clean list format
-- Overall progress: Large banner at top with combined percentage
+**Chapter Accordion Cards:**
+- Large clickable header with chapter name (text-lg font-semibold)
+- Subject badge pill (Physics/Chemistry/Math with distinct badges)
+- Completion summary: "You: 8/12 | Rival: 5/12" in small caps
+- Expanded state shows lecture/DPP lists with checkboxes
+- Hover state: Subtle background lift (bg-gray-50)
 
-### School Syllabus & Chat
-- Month range selector: Dropdown or date picker, clear start/end display
-- Syllabus list: Table or card layout with dual checkbox columns (You | Rival)
-- Chat section: Fixed bottom panel or side panel (h-96 to h-[500px])
-- Messages: Avatar icon, timestamp, simple bubbles
-- Input: Sticky bottom with send button
+**Lecture/DPP Line Items:**
+- Checkbox on left (large, 20px minimum)
+- Lecture name/number in body text
+- Status indicators on right: "You ✓" (primary), "Rival ✓" (secondary), "Both ✓✓", "None" (gray)
+- Toggle animation: Smooth checkbox transition with success toast
+- Dividers between items (border-gray-200)
 
-### Buttons
-- Primary action: Bold, high contrast, px-6 py-3
-- Secondary: Outlined variant
-- Icon buttons: Square, p-2, for actions like "Add" or "Delete"
-- All buttons: Smooth hover transitions (transition-all duration-200)
+**Quick Jump Navigation:**
+- Sticky pill buttons floating above content
+- "Physics | Chemistry | Math" horizontal scroll on mobile
+- Active section highlighted with primary background
 
-## Visual Treatment
+### Progress Dashboard Components
 
-**Dark Theme Foundation:**
-- Base background: Near black (zinc-950 or neutral-950)
-- Card backgrounds: Slightly lighter (zinc-900)
-- Borders: Subtle (zinc-800)
-- Text: High contrast white/zinc-100 for primary, zinc-400 for secondary
+**Comparative Progress Cards:**
+- Large cards with user profile images side-by-side
+- Progress bars stacked vertically showing head-to-head comparison
+- Primary color for current user, secondary for rival
+- Numbers displayed prominently above bars (text-3xl font-bold)
+- Subject breakdown in smaller cards below
 
-**Competitive Accents:**
-- Victory highlights: Emerald-500 for completed items
-- Rivalry tension: Red-500/orange-500 for "behind" status indicators
-- Neutral: Blue-500 for informational elements
-- Streak fire: Gradient from orange-500 to red-600
+**Circular Progress Charts:**
+- SVG-based radial progress (120-150px diameter)
+- Percentage in center (text-2xl font-bold)
+- Color-coded by subject or user
+- Label below chart (text-sm)
 
-**Depth & Elevation:**
-- Cards: Subtle shadow (shadow-lg) against dark background
-- Hover states: Slight lift (transform scale-105 or shadow-xl)
-- Active items: Inner glow effect
+**Streak Counter Display:**
+- Large flame icon (🔥) or custom SVG
+- Current streak number (text-5xl font-bold)
+- "day streak" label below
+- Side-by-side comparison in grid
+- Visual indicator if streak is at risk
 
-## Iconography
+### Achievement System Components
 
-**Icons Library:** Heroicons (outline for regular, solid for active states)
-- Use consistently across all UI elements
-- Size: w-5 h-5 for inline, w-6 h-6 for standalone
-- Emoji for user identities: 🦊 (User 1), ⚡ (User 2) - rendered at text-xl size
+**Achievement Badge Grid:**
+- Card-based grid layout
+- Unlocked: Full color with unlock date
+- Locked: Grayscale with lock icon overlay
+- Badge icon (emoji or custom SVG, 48px)
+- Achievement name (text-base font-semibold)
+- Description (text-sm text-gray-600)
+- Unlock timestamp (text-xs)
+- Hover: Gentle scale transform (scale-105)
 
-## Animations
+**Achievement Toast Notifications:**
+- Slide in from top-right
+- Large badge icon on left
+- "Achievement Unlocked!" header
+- Achievement name in bold
+- Auto-dismiss after 5 seconds
 
-**Minimal, Purposeful:**
-- Checkbox completion: Quick check animation (scale + opacity)
-- Streak increment: Number count-up animation (smooth)
-- Bar graph: Horizontal fill animation on load (duration-700)
-- Page transitions: Subtle fade (duration-200)
-- Chart renders: Ease-in growth effect (duration-500)
+### School Lesson Components
 
-**No Distractions:** Avoid auto-playing animations, carousels, or excessive motion
+**Lesson Creation Form:**
+- Clean form layout with labels above inputs
+- Subject dropdown (large touch targets)
+- Month range selector (dropdown with visual calendar)
+- Lesson name text input (full width)
+- File upload zone for mindmap PDFs (drag-and-drop area)
 
-## Data Visualization
+**Lesson Card:**
+- Similar to lecture items but with mindmap preview
+- PDF icon with "View Mindmap" link
+- Upload button if no mindmap exists
+- Month range badge (subtle background)
+- Completion checkbox with both users' status
 
-**Bar Graphs (Dashboard):**
-- Horizontal bars preferred for comparison clarity
-- Two bars per subject (Physics, Chemistry, Math)
-- User icons at bar ends
-- Percentage labels inside or beside bars
-- Gridlines: Minimal, subtle (zinc-800)
+### Chat Components
 
-**Progress Circles:**
-- Clean, bold strokes (stroke-width: 8-12)
-- Completed portion in victory accent
-- Remaining in muted gray
-- Animated fill on page load
+**Chat Message List:**
+- Scrollable container (max-h-96 lg:max-h-screen)
+- Messages aligned left (rival) and right (current user)
+- Profile image next to each message (w-8 h-8 rounded-full)
+- Speech bubble design with tails
+- Timestamp below message (text-xs text-gray-500)
+- Auto-scroll to bottom on new message
+- Empty state: "Start the conversation" with icon
+
+**Message Input:**
+- Fixed bottom bar (sticky)
+- Text input with rounded corners (full width)
+- Send button (icon or "Send" text) on right
+- Enter to send, Shift+Enter for new line
+- Character limit indicator if needed
+
+### Settings & Profile Components
+
+**Profile Section:**
+- Large profile image upload zone (center aligned)
+- Circular preview (w-32 h-32)
+- "Upload Photo" button below (or camera icon overlay on hover)
+- Name and email display (text-lg)
+- PW Batch ID badge
+- Rival code display (monospace font)
+
+**Theme Toggle:**
+- Switch component (toggle slider)
+- Sun/Moon icons
+- Label "Light / Dark Mode"
+- Smooth transition on theme change
+
+**File Upload Zones:**
+- Dashed border rectangle (border-2 border-dashed)
+- Upload icon (cloud or arrow up) centered
+- "Drag & drop or click to upload" text
+- File type and size limits below (text-xs)
+- Progress bar during upload
+- Error states with red border and message
+
+### Additional UI Elements
+
+**Buttons:**
+- Primary: Solid background, white text, rounded-lg, px-6 py-3
+- Secondary: Outline style, primary border
+- Icon buttons: p-2 rounded-full, hover background
+- Disabled state: opacity-50, cursor-not-allowed
+
+**Cards:**
+- Background white (dark mode: dark gray)
+- Rounded corners (rounded-xl)
+- Subtle shadow (shadow-sm)
+- Padding p-6
+- Hover: shadow-md transition
+
+**Badges/Pills:**
+- Small rounded-full with px-3 py-1
+- Subject badges: Distinct background per subject
+- Status indicators: Icon + text combination
+- Uppercase text-xs font-semibold tracking-wide
+
+**Loading States:**
+- Skeleton screens for content loading
+- Spinner for button actions
+- Shimmer animation on placeholders
+
+**Empty States:**
+- Centered icon (large, 64px)
+- Heading text (text-xl)
+- Description paragraph
+- Call-to-action button
 
 ## Images
 
-**Favicon:** Goku Black symbol (悟) provided by user - implement as app icon
+**Profile Images:**
+- User-uploaded photos displayed as circular avatars throughout the app
+- Default fallback: User icon emoji (🦊 or ⚡) on colored background
+- Sizes: w-10 h-10 (nav), w-32 h-32 (settings), w-8 h-8 (chat)
 
-**No Hero Images:** This is a utility app, not a marketing site. Focus on functional UI, not decorative imagery.
+**No Large Hero Section:**
+- This is a dashboard app - land directly on the Battle Arena or Dashboard
+- Authentication pages: Simple centered card with app logo/name at top
+- Focus on immediate functionality, not marketing
 
-**Avatar Placeholders:** Use simple initial circles or solid emoji icons for user representation.
+**Mindmap Previews:**
+- PDF thumbnail or icon representation
+- "View PDF" link button with download icon
+- No embedded PDF viewers - open in new tab
 
-## Accessibility
+## Responsive Behavior
 
-- All checkboxes: Proper labels and keyboard navigation
-- Focus indicators: Visible ring (ring-2 ring-offset-2)
-- Forms: Error states in red-500 with clear messaging
-- Contrast ratios: Maintain WCAG AA standards despite dark theme
-- Chat: Scrollable with keyboard support
+**Mobile (< 768px):**
+- Single column layouts
+- Collapsible navigation (hamburger menu)
+- Stacked progress comparisons
+- Larger touch targets (min 44px)
+- Bottom navigation bar for main sections
 
-## Responsive Strategy
+**Tablet (768px - 1024px):**
+- Two-column grids where appropriate
+- Side-by-side comparisons visible
+- Sidebar navigation appears
 
-**Mobile (base - md):**
-- Stack all dual-column layouts to single column
-- Reduce stat number sizes (text-4xl → text-3xl)
-- Collapse navigation to hamburger if needed
-- Chat: Full-screen overlay or bottom sheet
+**Desktop (> 1024px):**
+- Full multi-column layouts
+- Persistent sidebar navigation
+- Side-by-side views for competitive elements
+- Hover states fully active
 
-**Desktop (lg+):**
-- Side-by-side rival comparisons
-- Multi-column grids for stats
-- Expanded chart sizes
+## Visual Hierarchy & Principles
 
-## Special UX Considerations
+1. **Competitive First**: Always show both users' data side-by-side when comparing
+2. **Instant Feedback**: Real-time updates visible within 1 second
+3. **Clarity Over Decoration**: Information density is high, but clean
+4. **Motivational Design**: Use success states, celebrations for achievements
+5. **Consistent Patterns**: Completion checkboxes work identically everywhere
+6. **Accessibility**: Maintain WCAG AA contrast ratios, keyboard navigation for all actions
 
-**Real-time Updates:** Visual indicator when rival completes something (subtle pulse on their icon)
-
-**Streak Logic Display:** Clear tooltip explaining "1 completion needed in last 24h"
-
-**2-User Enforcement:** Sign-up page shows "1/2 slots filled" or "Full - No new signups" messaging
-
-**Battle Mindset:** Every completion should feel earned - consider subtle success micro-interactions (confetti particles on streak milestone, etc.)
-
----
-
-**Execution Note:** Build with surgical precision. Every pixel serves the rivalry. Dark, focused, fast, deadly accurate.
+This design creates a focused, competitive, and motivational study environment that feels premium while maintaining utility-first clarity.

@@ -2,142 +2,119 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Lock } from "lucide-react";
+import { Trophy, Lock, Calendar, Star } from "lucide-react";
+import { ACHIEVEMENT_DEFINITIONS } from "@shared/schema";
 
-interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  category: string;
-  earned_at?: string;
+interface AchievementData {
+  achievements: {
+    name: string;
+    unlockedAt: string;
+  }[];
+  stats: {
+    total: number;
+    unlocked: number;
+  };
 }
 
-interface AchievementsData {
-  user: {
-    id: string;
-    name: string;
-    userIcon: string;
-  };
-  rival: {
-    id: string;
-    name: string;
-    userIcon: string;
-  };
-  userAchievements: Achievement[];
-  rivalAchievements: Achievement[];
-}
-
-const categories = [
-  { key: "starter", label: "Starter", color: "bg-green-500/10 text-green-700 dark:text-green-400" },
-  { key: "milestone", label: "Milestones", color: "bg-blue-500/10 text-blue-700 dark:text-blue-400" },
-  { key: "subject", label: "Subjects", color: "bg-purple-500/10 text-purple-700 dark:text-purple-400" },
-  { key: "streak", label: "Streaks", color: "bg-orange-500/10 text-orange-700 dark:text-orange-400" },
-  { key: "perfect", label: "Perfect", color: "bg-pink-500/10 text-pink-700 dark:text-pink-400" },
-  { key: "competitive", label: "Competitive", color: "bg-red-500/10 text-red-700 dark:text-red-400" },
-  { key: "special", label: "Special", color: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-400" },
-];
-
-export default function AchievementsPage() {
-  const { data, isLoading } = useQuery<AchievementsData>({
-    queryKey: ["/api/achievements/compare"],
-    refetchInterval: 1000,
+export default function Achievements() {
+  const { data, isLoading } = useQuery<AchievementData>({
+    queryKey: ["/api/achievements/all"],
+    refetchInterval: 5000,
   });
 
-  if (isLoading || !data) {
+  if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-40" />
-        <Skeleton className="h-96" />
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <Skeleton className="h-32 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
-  const userEarned = new Set(data.userAchievements.filter((a) => a.earned_at).map((a) => a.id));
-  const rivalEarned = new Set(data.rivalAchievements.filter((a) => a.earned_at).map((a) => a.id));
+  const unlockedAchievements = new Set(data?.achievements.map((a) => a.name) || []);
+  const getUnlockDate = (name: string) => {
+    const achievement = data?.achievements.find((a) => a.name === name);
+    return achievement?.unlockedAt;
+  };
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Achievements</h1>
-        <p className="text-muted-foreground">Unlock achievements and compare with your rival</p>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Trophy className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Achievements</h2>
+            <p className="text-sm text-muted-foreground">
+              Unlock milestones as you progress
+            </p>
+          </div>
+        </div>
+        <Badge variant="secondary" className="px-4 py-2 text-base gap-2">
+          <Star className="w-4 h-4 text-yellow-500" />
+          {data?.stats.unlocked || 0} / {data?.stats.total || ACHIEVEMENT_DEFINITIONS.length}
+        </Badge>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{data.user.userIcon}</span>
-              <div>
-                <CardTitle>{data.user.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{userEarned.size} achievements earned</p>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader className="space-y-2">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{data.rival.userIcon}</span>
-              <div>
-                <CardTitle>{data.rival.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{rivalEarned.size} achievements earned</p>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <div className="space-y-6">
-        {categories.map((cat) => {
-          const categoryAchievements = data.userAchievements.filter((a) => a.category === cat.key);
-          if (categoryAchievements.length === 0) return null;
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {ACHIEVEMENT_DEFINITIONS.map((achievement) => {
+          const isUnlocked = unlockedAchievements.has(achievement.name);
+          const unlockDate = getUnlockDate(achievement.name);
 
           return (
-            <div key={cat.key} className="space-y-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Badge variant="secondary">{cat.label}</Badge>
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categoryAchievements.map((achievement) => {
-                  const userHas = userEarned.has(achievement.id);
-                  const rivalHas = rivalEarned.has(achievement.id);
-
-                  return (
-                    <Card
-                      key={achievement.id}
-                      className={`transition-all ${userHas || rivalHas ? "" : "opacity-50"}`}
-                    >
-                      <CardContent className="pt-6">
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="text-3xl">{achievement.icon}</div>
-                            <div className="flex gap-1">
-                              {userHas && (
-                                <Badge variant="outline" className="bg-chart-1/10 text-chart-1 border-chart-1/30">
-                                  {data.user.userIcon}
-                                </Badge>
-                              )}
-                              {rivalHas && (
-                                <Badge variant="outline" className="bg-chart-2/10 text-chart-2 border-chart-2/30">
-                                  {data.rival.userIcon}
-                                </Badge>
-                              )}
-                              {!userHas && !rivalHas && <Lock className="w-4 h-4 text-muted-foreground" />}
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-sm">{achievement.name}</h3>
-                            <p className="text-xs text-muted-foreground">{achievement.description}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
+            <Card
+              key={achievement.name}
+              className={`transition-all ${
+                isUnlocked
+                  ? "bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"
+                  : "opacity-60 grayscale"
+              }`}
+              data-testid={`achievement-${achievement.name.toLowerCase().replace(/\s+/g, "-")}`}
+            >
+              <CardContent className="p-4 text-center">
+                <div
+                  className={`relative w-16 h-16 mx-auto mb-3 rounded-xl flex items-center justify-center text-3xl ${
+                    isUnlocked
+                      ? "bg-primary/10"
+                      : "bg-muted"
+                  }`}
+                >
+                  {isUnlocked ? (
+                    achievement.icon
+                  ) : (
+                    <Lock className="w-6 h-6 text-muted-foreground" />
+                  )}
+                </div>
+                <h3
+                  className={`font-semibold text-sm mb-1 ${
+                    isUnlocked ? "text-foreground" : "text-muted-foreground"
+                  }`}
+                >
+                  {achievement.name}
+                </h3>
+                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                  {achievement.description}
+                </p>
+                {isUnlocked && unlockDate && (
+                  <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(unlockDate).toLocaleDateString()}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
       </div>

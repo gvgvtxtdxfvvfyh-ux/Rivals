@@ -1,39 +1,27 @@
-import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
-import { useEffect } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/lib/auth";
+import { Redirect } from "wouter";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const [, setLocation] = useLocation();
-
-  const { data: user, isLoading, error } = useQuery({
-    queryKey: ["/api/auth/me"],
-    retry: false,
-  });
-
-  useEffect(() => {
-    if (!isLoading && (error || !user)) {
-      setLocation("/signin");
-    }
-  }, [user, isLoading, error, setLocation]);
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const { user, isLoading } = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="space-y-4 w-full max-w-2xl px-4">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-96 w-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !user) {
-    return null;
+  if (!user) {
+    return <Redirect to="/signin" />;
   }
 
   return <>{children}</>;

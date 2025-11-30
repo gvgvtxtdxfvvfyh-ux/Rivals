@@ -1,296 +1,420 @@
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, Trophy, BookOpen, FileText, Crown, Swords } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import {
+  Flame,
+  Trophy,
+  BookOpen,
+  FileText,
+  Atom,
+  FlaskConical,
+  Calculator,
+  Crown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+} from "recharts";
 
-interface ProgressData {
+interface DashboardData {
   user: {
     id: string;
     name: string;
     userIcon: string;
+    profileImageUrl: string | null;
+    totalCompletions: number;
+    lectureCompletions: number;
+    dppCompletions: number;
+    physics: number;
+    chemistry: number;
+    mathematics: number;
     streak: number;
-    physics: { lectures: number; dpps: number };
-    chemistry: { lectures: number; dpps: number };
-    math: { lectures: number; dpps: number };
+    achievements: number;
   };
   rival: {
     id: string;
     name: string;
     userIcon: string;
+    profileImageUrl: string | null;
+    totalCompletions: number;
+    lectureCompletions: number;
+    dppCompletions: number;
+    physics: number;
+    chemistry: number;
+    mathematics: number;
     streak: number;
-    physics: { lectures: number; dpps: number };
-    chemistry: { lectures: number; dpps: number };
-    math: { lectures: number; dpps: number };
-  };
+    achievements: number;
+  } | null;
+  totalLectures: number;
+  totalDpps: number;
 }
 
-interface BattleInfo {
-  endDate: string;
-  hasEnded: boolean;
-  daysRemaining: number;
-  userTotal: number;
-  rivalTotal: number;
-  winner: "user" | "rival" | "tie";
+const COLORS = {
+  physics: "hsl(217, 91%, 60%)",
+  chemistry: "hsl(142, 76%, 36%)",
+  mathematics: "hsl(271, 91%, 65%)",
+};
+
+function StatCard({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  trend,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon: typeof Trophy;
+  trend?: "up" | "down" | "neutral";
+  color?: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold" style={{ color }}>
+              {value}
+            </p>
+            {subtitle && (
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
+            )}
+          </div>
+          <div
+            className="p-3 rounded-xl"
+            style={{
+              backgroundColor: color ? `${color}15` : "hsl(var(--muted))",
+            }}
+          >
+            <Icon
+              className="w-6 h-6"
+              style={{ color: color || "hsl(var(--muted-foreground))" }}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RivalComparison({
+  userData,
+  rivalData,
+  label,
+  maxValue,
+}: {
+  userData: number;
+  rivalData: number;
+  label: string;
+  maxValue: number;
+}) {
+  const userPercentage = maxValue > 0 ? (userData / maxValue) * 100 : 0;
+  const rivalPercentage = maxValue > 0 ? (rivalData / maxValue) * 100 : 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">{label}</span>
+        <span className="font-medium">
+          {userData} vs {rivalData}
+        </span>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-green-600 dark:text-green-400 w-8">You</span>
+          <Progress value={userPercentage} className="flex-1 h-2" />
+          <span className="text-xs font-medium w-8">{userData}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-orange-600 dark:text-orange-400 w-8">Rival</span>
+          <Progress value={rivalPercentage} className="flex-1 h-2 [&>div]:bg-orange-500" />
+          <span className="text-xs font-medium w-8">{rivalData}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function Dashboard() {
-  const { data: progressData, isLoading } = useQuery<ProgressData>({
+  const { user } = useAuth();
+
+  const { data, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/progress/dashboard"],
-    refetchInterval: 1000, // Refetch every second for live updates
+    refetchInterval: 2000,
   });
 
-  const { data: battleInfo } = useQuery<BattleInfo>({
-    queryKey: ["/api/battle/info"],
-    refetchInterval: 1000, // Refetch every second for live updates
-  });
-
-  if (isLoading || !progressData) {
+  if (isLoading) {
     return (
-      <div className="space-y-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <Skeleton className="h-96" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-32" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-48 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
-  const chartData = [
-    {
-      subject: "Physics",
-      [`${progressData.user.userIcon} Lectures`]: progressData.user.physics.lectures,
-      [`${progressData.rival.userIcon} Lectures`]: progressData.rival.physics.lectures,
-      [`${progressData.user.userIcon} DPPs`]: progressData.user.physics.dpps,
-      [`${progressData.rival.userIcon} DPPs`]: progressData.rival.physics.dpps,
-    },
-    {
-      subject: "Chemistry",
-      [`${progressData.user.userIcon} Lectures`]: progressData.user.chemistry.lectures,
-      [`${progressData.rival.userIcon} Lectures`]: progressData.rival.chemistry.lectures,
-      [`${progressData.user.userIcon} DPPs`]: progressData.user.chemistry.dpps,
-      [`${progressData.rival.userIcon} DPPs`]: progressData.rival.chemistry.dpps,
-    },
-    {
-      subject: "Math",
-      [`${progressData.user.userIcon} Lectures`]: progressData.user.math.lectures,
-      [`${progressData.rival.userIcon} Lectures`]: progressData.rival.math.lectures,
-      [`${progressData.user.userIcon} DPPs`]: progressData.user.math.dpps,
-      [`${progressData.rival.userIcon} DPPs`]: progressData.rival.math.dpps,
-    },
+  if (!data) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <TrendingUp className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No Data Available</h3>
+            <p className="text-muted-foreground">
+              Start completing lectures and DPPs to see your progress here.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const pieData = [
+    { name: "Physics", value: data.user.physics, color: COLORS.physics },
+    { name: "Chemistry", value: data.user.chemistry, color: COLORS.chemistry },
+    { name: "Mathematics", value: data.user.mathematics, color: COLORS.mathematics },
   ];
 
-  const userTotal = progressData.user.physics.lectures + progressData.user.physics.dpps +
-    progressData.user.chemistry.lectures + progressData.user.chemistry.dpps +
-    progressData.user.math.lectures + progressData.user.math.dpps;
+  const isLeading = data.rival
+    ? data.user.totalCompletions > data.rival.totalCompletions
+    : true;
 
-  const rivalTotal = progressData.rival.physics.lectures + progressData.rival.physics.dpps +
-    progressData.rival.chemistry.lectures + progressData.rival.chemistry.dpps +
-    progressData.rival.math.lectures + progressData.rival.math.dpps;
+  const totalItems = data.totalLectures + data.totalDpps;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">Battle Dashboard</h1>
-        <p className="text-muted-foreground">Track your progress against your rival</p>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Completions"
+          value={data.user.totalCompletions}
+          subtitle={`of ${totalItems} items`}
+          icon={Trophy}
+          color="hsl(217, 91%, 60%)"
+        />
+        <StatCard
+          title="Lectures Done"
+          value={data.user.lectureCompletions}
+          subtitle={`of ${data.totalLectures} lectures`}
+          icon={BookOpen}
+          color="hsl(142, 76%, 36%)"
+        />
+        <StatCard
+          title="DPPs Done"
+          value={data.user.dppCompletions}
+          subtitle={`of ${data.totalDpps} DPPs`}
+          icon={FileText}
+          color="hsl(27, 96%, 61%)"
+        />
+        <StatCard
+          title="Current Streak"
+          value={data.user.streak}
+          subtitle="days"
+          icon={Flame}
+          color="hsl(25, 95%, 53%)"
+        />
       </div>
-
-      {battleInfo && (
-        <Card className={`border-2 ${battleInfo.hasEnded ? "border-destructive/50 bg-destructive/5" : "border-chart-3/50"}`}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-lg">{battleInfo.hasEnded ? "⚔️ Battle Ended" : "⚔️ Battle in Progress"}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Ends April 1, 2026
-              </p>
-            </div>
-            <div className="text-right">
-              {battleInfo.hasEnded ? (
-                <div className="space-y-2">
-                  <div className="text-xs text-muted-foreground">Winner:</div>
-                  {battleInfo.winner === "user" ? (
-                    <div className="flex items-center gap-2 text-lg font-bold text-chart-1">
-                      <Crown className="w-5 h-5" />
-                      You Won!
-                    </div>
-                  ) : battleInfo.winner === "rival" ? (
-                    <div className="text-lg font-bold text-chart-2">They Won</div>
-                  ) : (
-                    <div className="text-lg font-bold text-muted-foreground">It's a Tie!</div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="text-3xl font-bold text-chart-3">{battleInfo.daysRemaining}</div>
-                  <div className="text-xs text-muted-foreground">days remaining</div>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-sm text-muted-foreground mb-1">Your Score</div>
-                <div className="text-2xl font-bold">{battleInfo.userTotal}</div>
-              </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <div className="text-sm text-muted-foreground mb-1">Rival's Score</div>
-                <div className="text-2xl font-bold">{battleInfo.rivalTotal}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border border-card-border overflow-hidden relative bg-gradient-to-br from-card via-card to-card/80 shadow-xl">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-red-500 to-orange-600" />
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent pointer-events-none" />
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative z-10">
-            <CardTitle className="text-sm font-semibold tracking-tight">Your Streak</CardTitle>
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center border border-orange-500/30">
-              <Flame className="w-6 h-6 text-orange-500" />
-            </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Subject Breakdown
+            </CardTitle>
           </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="flex items-baseline gap-3 mb-6">
-              <span className="text-7xl font-bold tabular-nums bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent" data-testid="text-user-streak">
-                {progressData.user.streak}
-              </span>
-              <span className="text-2xl text-muted-foreground font-medium">days</span>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card-border/30 backdrop-blur">
-              <span className="text-3xl">{progressData.user.userIcon}</span>
-              <div>
-                <span className="text-sm font-semibold text-foreground block">
-                  {progressData.user.name}
-                </span>
-                <span className="text-xs text-muted-foreground">Active player</span>
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="text-center p-3 rounded-lg bg-blue-500/10">
+                <Atom className="w-5 h-5 mx-auto text-blue-500 mb-1" />
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  {data.user.physics}
+                </p>
+                <p className="text-xs text-muted-foreground">Physics</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-500/10">
+                <FlaskConical className="w-5 h-5 mx-auto text-green-500 mb-1" />
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                  {data.user.chemistry}
+                </p>
+                <p className="text-xs text-muted-foreground">Chemistry</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-purple-500/10">
+                <Calculator className="w-5 h-5 mx-auto text-purple-500 mb-1" />
+                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  {data.user.mathematics}
+                </p>
+                <p className="text-xs text-muted-foreground">Math</p>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-3 font-medium">
-              💡 Complete 1+ task daily to maintain your streak
-            </p>
           </CardContent>
         </Card>
 
-        <Card className="border border-card-border overflow-hidden relative bg-gradient-to-br from-card via-card to-card/80 shadow-xl">
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600" />
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 relative z-10">
-            <CardTitle className="text-sm font-semibold tracking-tight">{progressData.rival.name}'s Streak</CardTitle>
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30">
-              <Trophy className="w-6 h-6 text-blue-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="flex items-baseline gap-3 mb-6">
-              <span className="text-7xl font-bold tabular-nums bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent" data-testid="text-rival-streak">
-                {progressData.rival.streak}
-              </span>
-              <span className="text-2xl text-muted-foreground font-medium">days</span>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-card-border/30 backdrop-blur">
-              <span className="text-3xl">{progressData.rival.userIcon}</span>
-              <div>
-                <span className="text-sm font-semibold text-foreground block">
-                  {progressData.rival.name}
-                </span>
-                <span className="text-xs text-muted-foreground">Rival</span>
+        {data.rival ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                Rival Comparison
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-12 h-12 border-2 border-green-500">
+                    <AvatarImage
+                      src={data.user.profileImageUrl || undefined}
+                      alt={data.user.name}
+                    />
+                    <AvatarFallback className="bg-green-500/10 text-green-600">
+                      {data.user.userIcon || data.user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{data.user.name}</p>
+                    <p className="text-sm text-green-600 dark:text-green-400">You</p>
+                  </div>
+                </div>
+                {isLeading && (
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                )}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="font-medium">{data.rival.name}</p>
+                    <p className="text-sm text-orange-600 dark:text-orange-400">Rival</p>
+                  </div>
+                  <Avatar className="w-12 h-12 border-2 border-orange-500">
+                    <AvatarImage
+                      src={data.rival.profileImageUrl || undefined}
+                      alt={data.rival.name}
+                    />
+                    <AvatarFallback className="bg-orange-500/10 text-orange-600">
+                      {data.rival.userIcon || data.rival.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+                {!isLeading && (
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                )}
               </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-3 font-medium">
-              {progressData.rival.streak > progressData.user.streak
-                ? "⚡ They're leading! Time to catch up"
-                : progressData.user.streak > progressData.rival.streak
-                ? "🎯 You're ahead! Keep the momentum"
-                : "🔥 Neck and neck - it's anyone's game!"}
-            </p>
-          </CardContent>
-        </Card>
+
+              <div className="space-y-4">
+                <RivalComparison
+                  userData={data.user.totalCompletions}
+                  rivalData={data.rival.totalCompletions}
+                  label="Total Completions"
+                  maxValue={totalItems}
+                />
+                <RivalComparison
+                  userData={data.user.physics}
+                  rivalData={data.rival.physics}
+                  label="Physics"
+                  maxValue={Math.max(data.user.physics, data.rival.physics, 50)}
+                />
+                <RivalComparison
+                  userData={data.user.chemistry}
+                  rivalData={data.rival.chemistry}
+                  label="Chemistry"
+                  maxValue={Math.max(data.user.chemistry, data.rival.chemistry, 50)}
+                />
+                <RivalComparison
+                  userData={data.user.mathematics}
+                  rivalData={data.rival.mathematics}
+                  label="Mathematics"
+                  maxValue={Math.max(data.user.mathematics, data.rival.mathematics, 50)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-orange-500 mb-1">
+                    <Flame className="w-4 h-4" />
+                    <span className="text-lg font-bold">{data.user.streak}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Your Streak</p>
+                </div>
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1 text-orange-500 mb-1">
+                    <Flame className="w-4 h-4" />
+                    <span className="text-lg font-bold">{data.rival.streak}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Rival Streak</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center h-full py-12">
+              <Users className="w-12 h-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Rival Yet</h3>
+              <p className="text-muted-foreground text-center">
+                Share your rival code with a friend to start competing!
+              </p>
+              <Badge variant="secondary" className="mt-4 font-mono">
+                {user?.rivalCode}
+              </Badge>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Progress Comparison</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Completed lectures and DPPs by subject
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                <XAxis
-                  dataKey="subject"
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickLine={false}
-                />
-                <YAxis
-                  stroke="hsl(var(--muted-foreground))"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "6px",
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))" }}
-                />
-                <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                <Bar
-                  dataKey={`${progressData.user.userIcon} Lectures`}
-                  fill="hsl(var(--chart-1))"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey={`${progressData.rival.userIcon} Lectures`}
-                  fill="hsl(var(--chart-2))"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey={`${progressData.user.userIcon} DPPs`}
-                  fill="hsl(var(--chart-4))"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey={`${progressData.rival.userIcon} DPPs`}
-                  fill="hsl(var(--chart-5))"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="grid grid-cols-2 gap-4 mt-6 p-4 bg-muted/50 rounded-lg">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-2xl">{progressData.user.userIcon}</span>
-                <span className="font-semibold">{progressData.user.name}</span>
-              </div>
-              <div className="text-3xl font-bold tabular-nums" data-testid="text-user-total">
-                {userTotal}
-              </div>
-              <p className="text-xs text-muted-foreground">total completed</p>
-            </div>
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <span className="text-2xl">{progressData.rival.userIcon}</span>
-                <span className="font-semibold">{progressData.rival.name}</span>
-              </div>
-              <div className="text-3xl font-bold tabular-nums" data-testid="text-rival-total">
-                {rivalTotal}
-              </div>
-              <p className="text-xs text-muted-foreground">total completed</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

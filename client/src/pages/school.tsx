@@ -1,408 +1,571 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Send, BookOpen, MessageSquare } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
-
-interface SchoolLesson {
-  id: string;
-  subject: string;
-  lessonNumber: string;
-  lessonName: string;
-  monthRange: string;
-  userCompleted: boolean;
-  rivalCompleted: boolean;
-}
-
-interface ChatMessage {
-  id: string;
-  userId: string;
-  userName: string;
-  userIcon: string;
-  message: string;
-  createdAt: string;
-  isCurrentUser: boolean;
-}
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  GraduationCap,
+  Plus,
+  BookOpen,
+  Calendar,
+  MessageCircle,
+  Send,
+  FileText,
+  Upload,
+  Check,
+  X,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
 interface SchoolData {
-  user: { id: string; name: string; userIcon: string };
-  rival: { id: string; name: string; userIcon: string };
-  lessons: SchoolLesson[];
-  messages: ChatMessage[];
+  lessons: {
+    id: string;
+    subject: string;
+    lessonNumber: string;
+    lessonName: string;
+    monthRange: string;
+    mindmapUrl: string | null;
+    completedByUser: boolean;
+    completedByRival: boolean;
+    createdBy: string;
+  }[];
+  messages: {
+    id: string;
+    userId: string;
+    userName: string;
+    userIcon: string;
+    userProfileImage: string | null;
+    message: string;
+    createdAt: string;
+    isCurrentUser: boolean;
+  }[];
+  rival: {
+    id: string;
+    name: string;
+    userIcon: string;
+    profileImageUrl: string | null;
+  } | null;
 }
 
-export default function SchoolPage() {
+const lessonSchema = z.object({
+  subject: z.string().min(1, "Subject is required"),
+  lessonNumber: z.string().min(1, "Lesson number is required"),
+  lessonName: z.string().min(1, "Lesson name is required"),
+  monthRange: z.string().min(1, "Month range is required"),
+});
+
+type LessonFormData = z.infer<typeof lessonSchema>;
+
+const MONTH_RANGES = [
+  "January - February",
+  "March - April",
+  "May - June",
+  "July - August",
+  "September - October",
+  "November - December",
+];
+
+const SUBJECTS = [
+  "Physics",
+  "Chemistry",
+  "Mathematics",
+  "Biology",
+  "English",
+  "Computer Science",
+  "Other",
+];
+
+function AddLessonDialog() {
   const { toast } = useToast();
-  const [addingLesson, setAddingLesson] = useState(false);
-  const [lessonForm, setLessonForm] = useState({
-    subject: "",
-    lessonNumber: "",
-    lessonName: "",
-    monthRange: "",
-  });
-  const [customMonthRange, setCustomMonthRange] = useState(false);
-  const [messageText, setMessageText] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
 
-  const { data: schoolData, isLoading } = useQuery<SchoolData>({
-    queryKey: ["/api/school/all"],
-    refetchInterval: 3000,
+  const form = useForm<LessonFormData>({
+    resolver: zodResolver(lessonSchema),
+    defaultValues: {
+      subject: "",
+      lessonNumber: "",
+      lessonName: "",
+      monthRange: "",
+    },
   });
 
-  const addLessonMutation = useMutation({
-    mutationFn: async (data: typeof lessonForm) => {
-      return await apiRequest("POST", "/api/school/lessons", data);
+  const mutation = useMutation({
+    mutationFn: async (data: LessonFormData) => {
+      return apiRequest("POST", "/api/school/lessons", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/school/all"] });
-      setAddingLesson(false);
-      setLessonForm({ subject: "", lessonNumber: "", lessonName: "", monthRange: "" });
-      toast({ title: "Lesson added successfully" });
+      toast({
+        title: "Lesson added",
+        description: "Your school lesson has been created.",
+      });
+      setOpen(false);
+      form.reset();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
-  const toggleLessonMutation = useMutation({
-    mutationFn: async (lessonId: string) => {
-      return await apiRequest("PATCH", `/api/school/lessons/${lessonId}/toggle`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/school/all"] });
-    },
-  });
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2" data-testid="button-add-lesson">
+          <Plus className="w-4 h-4" />
+          Add Lesson
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add School Lesson</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
+            className="space-y-4 pt-4"
+          >
+            <FormField
+              control={form.control}
+              name="subject"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-subject">
+                        <SelectValue placeholder="Select subject" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {SUBJECTS.map((subject) => (
+                        <SelectItem key={subject} value={subject}>
+                          {subject}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-  const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
-      return await apiRequest("POST", "/api/school/messages", { message });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/school/all"] });
-      setMessageText("");
-    },
-  });
+            <FormField
+              control={form.control}
+              name="lessonNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lesson Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., Lesson 1"
+                      data-testid="input-lesson-number"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="lessonName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lesson Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter lesson name"
+                      data-testid="input-lesson-name"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="monthRange"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Month Range</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-month-range">
+                        <SelectValue placeholder="Select month range" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {MONTH_RANGES.map((range) => (
+                        <SelectItem key={range} value={range}>
+                          {range}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={mutation.isPending}
+              data-testid="button-submit-lesson"
+            >
+              {mutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Lesson"
+              )}
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ChatSection({
+  messages,
+  rival,
+}: {
+  messages: SchoolData["messages"];
+  rival: SchoolData["rival"];
+}) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [schoolData?.messages]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
-  if (isLoading || !schoolData) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <Skeleton className="h-96" />
+  const sendMessage = useMutation({
+    mutationFn: async (messageText: string) => {
+      return apiRequest("POST", "/api/school/chat", { message: messageText });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/school/all"] });
+      setMessage("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSend = () => {
+    if (message.trim()) {
+      sendMessage.mutate(message.trim());
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <Card className="flex flex-col h-[500px]">
+      <CardHeader className="border-b py-3 px-4">
+        <CardTitle className="text-base flex items-center gap-2">
+          <MessageCircle className="w-4 h-4 text-primary" />
+          Chat with {rival?.name || "Rival"}
+        </CardTitle>
+      </CardHeader>
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-center py-8">
+            <MessageCircle className="w-10 h-10 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No messages yet. Start the conversation!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex gap-2 ${
+                  msg.isCurrentUser ? "flex-row-reverse" : ""
+                }`}
+              >
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  <AvatarImage
+                    src={msg.userProfileImage || undefined}
+                    alt={msg.userName}
+                  />
+                  <AvatarFallback className="text-xs">
+                    {msg.userIcon || msg.userName.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <div
+                  className={`max-w-[70%] ${
+                    msg.isCurrentUser ? "text-right" : ""
+                  }`}
+                >
+                  <div
+                    className={`px-3 py-2 rounded-xl ${
+                      msg.isCurrentUser
+                        ? "bg-primary text-primary-foreground rounded-tr-sm"
+                        : "bg-muted rounded-tl-sm"
+                    }`}
+                  >
+                    <p className="text-sm break-words">{msg.message}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      <div className="border-t p-3">
+        <div className="flex gap-2">
+          <Textarea
+            placeholder="Type a message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="resize-none min-h-[44px] max-h-24"
+            rows={1}
+            data-testid="input-chat-message"
+          />
+          <Button
+            onClick={handleSend}
+            disabled={!message.trim() || sendMessage.isPending}
+            size="icon"
+            data-testid="button-send-message"
+          >
+            {sendMessage.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
         </div>
-        <Skeleton className="h-96" />
+      </div>
+    </Card>
+  );
+}
+
+function LessonCard({
+  lesson,
+}: {
+  lesson: SchoolData["lessons"][0];
+}) {
+  const { toast } = useToast();
+
+  const toggleCompletion = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PATCH", `/api/school/lessons/${lesson.id}/toggle`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/school/all"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  return (
+    <Card
+      className="hover:shadow-sm transition-shadow"
+      data-testid={`lesson-${lesson.id}`}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            checked={lesson.completedByUser}
+            onCheckedChange={() => toggleCompletion.mutate()}
+            disabled={toggleCompletion.isPending}
+            className="mt-1"
+            data-testid={`checkbox-lesson-${lesson.id}`}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <Badge variant="secondary" className="text-xs">
+                {lesson.subject}
+              </Badge>
+              <Badge variant="outline" className="text-xs gap-1">
+                <Calendar className="w-3 h-3" />
+                {lesson.monthRange}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground font-mono">
+              {lesson.lessonNumber}
+            </p>
+            <p className="font-medium truncate">{lesson.lessonName}</p>
+            {lesson.mindmapUrl && (
+              <a
+                href={lesson.mindmapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
+              >
+                <FileText className="w-3 h-3" />
+                View Mindmap
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {lesson.completedByUser && lesson.completedByRival ? (
+              <Badge className="bg-primary/10 text-primary border-primary/20">
+                <Check className="w-3 h-3 mr-1" />
+                Both
+              </Badge>
+            ) : lesson.completedByUser ? (
+              <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                <Check className="w-3 h-3 mr-1" />
+                You
+              </Badge>
+            ) : lesson.completedByRival ? (
+              <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                Rival
+              </Badge>
+            ) : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function School() {
+  const { data, isLoading } = useQuery<SchoolData>({
+    queryKey: ["/api/school/all"],
+    refetchInterval: 2000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-8 w-48" />
+              <Skeleton className="h-10 w-32" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="h-20 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <Card className="h-[500px]">
+            <Skeleton className="h-full w-full" />
+          </Card>
+        </div>
       </div>
     );
   }
 
-  const groupedLessons = schoolData.lessons.reduce((acc, lesson) => {
-    if (!acc[lesson.monthRange]) {
-      acc[lesson.monthRange] = [];
-    }
-    acc[lesson.monthRange].push(lesson);
-    return acc;
-  }, {} as Record<string, SchoolLesson[]>);
-
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight mb-2">School Syllabus</h1>
-        <p className="text-muted-foreground">Track your school lessons and chat with your rival</p>
-      </div>
-
+    <div className="max-w-6xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5" />
-                Syllabus Tracker
-              </CardTitle>
-              <Button
-                size="sm"
-                onClick={() => setAddingLesson(true)}
-                data-testid="button-add-lesson"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Lesson
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {addingLesson && (
-                <div className="p-4 bg-muted/50 rounded-md space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      placeholder="Subject"
-                      value={lessonForm.subject}
-                      onChange={(e) =>
-                        setLessonForm({ ...lessonForm, subject: e.target.value })
-                      }
-                      data-testid="input-lesson-subject"
-                    />
-                    <Input
-                      placeholder="Lesson Number"
-                      value={lessonForm.lessonNumber}
-                      onChange={(e) =>
-                        setLessonForm({ ...lessonForm, lessonNumber: e.target.value })
-                      }
-                      data-testid="input-lesson-number"
-                    />
-                  </div>
-                  <Input
-                    placeholder="Lesson Name"
-                    value={lessonForm.lessonName}
-                    onChange={(e) =>
-                      setLessonForm({ ...lessonForm, lessonName: e.target.value })
-                    }
-                    data-testid="input-lesson-name"
-                  />
-                  <div className="space-y-2">
-                    {!customMonthRange ? (
-                      <>
-                        <Select
-                          value={lessonForm.monthRange}
-                          onValueChange={(value) =>
-                            setLessonForm({ ...lessonForm, monthRange: value })
-                          }
-                        >
-                          <SelectTrigger data-testid="select-month-range">
-                            <SelectValue placeholder="Select Month Range" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Jan-Mar">January - March</SelectItem>
-                            <SelectItem value="Apr-Jun">April - June</SelectItem>
-                            <SelectItem value="Jul-Sep">July - September</SelectItem>
-                            <SelectItem value="Oct-Dec">October - December</SelectItem>
-                            <SelectItem value="Jan-Jun">January - June</SelectItem>
-                            <SelectItem value="Jul-Dec">July - December</SelectItem>
-                            <SelectItem value="Jan-Dec">Full Year</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCustomMonthRange(true);
-                            setLessonForm({ ...lessonForm, monthRange: "" });
-                          }}
-                          className="w-full"
-                          data-testid="button-custom-month-range"
-                        >
-                          + Custom Range
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Input
-                          placeholder="e.g., Feb-May or January to June"
-                          value={lessonForm.monthRange}
-                          onChange={(e) =>
-                            setLessonForm({ ...lessonForm, monthRange: e.target.value })
-                          }
-                          data-testid="input-custom-month-range"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setCustomMonthRange(false);
-                            setLessonForm({ ...lessonForm, monthRange: "" });
-                          }}
-                          className="w-full"
-                          data-testid="button-back-to-presets"
-                        >
-                          Use Preset
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => addLessonMutation.mutate(lessonForm)}
-                      disabled={
-                        !lessonForm.subject ||
-                        !lessonForm.lessonNumber ||
-                        !lessonForm.lessonName ||
-                        !lessonForm.monthRange
-                      }
-                      data-testid="button-save-lesson"
-                    >
-                      Save Lesson
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setAddingLesson(false);
-                        setCustomMonthRange(false);
-                        setLessonForm({
-                          subject: "",
-                          lessonNumber: "",
-                          lessonName: "",
-                          monthRange: "",
-                        });
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <GraduationCap className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">School Lessons</h2>
+                <p className="text-sm text-muted-foreground">
+                  Track your school syllabus progress
+                </p>
+              </div>
+            </div>
+            <AddLessonDialog />
+          </div>
 
-              {Object.keys(groupedLessons).length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">No lessons added yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Click "Add Lesson" to start tracking your syllabus
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {Object.entries(groupedLessons).map(([monthRange, lessons]) => (
-                    <div key={monthRange}>
-                      <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                        <div className="h-px flex-1 bg-border" />
-                        <span className="px-3">{monthRange}</span>
-                        <div className="h-px flex-1 bg-border" />
-                      </h3>
-                      <div className="space-y-2">
-                        {lessons.map((lesson) => (
-                          <div
-                            key={lesson.id}
-                            className="flex items-center gap-4 p-3 bg-card border border-card-border rounded-md"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                checked={lesson.userCompleted}
-                                onCheckedChange={() => toggleLessonMutation.mutate(lesson.id)}
-                                data-testid={`checkbox-lesson-${lesson.id}-user`}
-                              />
-                              <span className="text-lg">{schoolData.user.userIcon}</span>
-                            </div>
-                            <div className="h-8 w-px bg-border" />
-                            <div className="flex items-center gap-3">
-                              <Checkbox
-                                checked={lesson.rivalCompleted}
-                                disabled
-                                data-testid={`checkbox-lesson-${lesson.id}-rival`}
-                              />
-                              <span className="text-lg">{schoolData.rival.userIcon}</span>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-muted-foreground">
-                                  {lesson.subject}
-                                </span>
-                                <span className="text-sm text-muted-foreground">•</span>
-                                <span className="text-sm font-mono">#{lesson.lessonNumber}</span>
-                              </div>
-                              <p className="font-medium">{lesson.lessonName}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {data?.lessons.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <BookOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No Lessons Yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Add your first school lesson to start tracking.
+                </p>
+                <AddLessonDialog />
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {data?.lessons.map((lesson) => (
+                <LessonCard key={lesson.id} lesson={lesson} />
+              ))}
+            </div>
+          )}
         </div>
 
-        <Card className="lg:sticky lg:top-4 lg:h-[calc(100vh-8rem)]">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Chat
-            </CardTitle>
-          </CardHeader>
-          <Separator />
-          <CardContent className="p-0 flex flex-col h-[calc(100%-5rem)]">
-            <ScrollArea className="flex-1 p-4">
-              <div className="space-y-4">
-                {schoolData.messages.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">No messages yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Start the conversation with your rival
-                    </p>
-                  </div>
-                ) : (
-                  schoolData.messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex gap-3 ${
-                        msg.isCurrentUser ? "flex-row-reverse" : "flex-row"
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                        <span className="text-sm">{msg.userIcon}</span>
-                      </div>
-                      <div
-                        className={`flex-1 max-w-[70%] ${
-                          msg.isCurrentUser ? "items-end" : "items-start"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium">{msg.userName}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(new Date(msg.createdAt), "HH:mm")}
-                          </span>
-                        </div>
-                        <div
-                          className={`p-3 rounded-lg ${
-                            msg.isCurrentUser
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          }`}
-                        >
-                          <p className="text-sm break-words">{msg.message}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
-            <div className="p-4 border-t border-border">
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (messageText.trim()) {
-                    sendMessageMutation.mutate(messageText);
-                  }
-                }}
-                className="flex gap-2"
-              >
-                <Input
-                  placeholder="Type a message..."
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  data-testid="input-chat-message"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!messageText.trim() || sendMessageMutation.isPending}
-                  data-testid="button-send-message"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
-            </div>
-          </CardContent>
-        </Card>
+        <ChatSection messages={data?.messages || []} rival={data?.rival || null} />
       </div>
     </div>
   );

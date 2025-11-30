@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { signUpSchema } from "@shared/schema";
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,30 +15,22 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Lock, Users } from "lucide-react";
+import { Swords, Loader2, Eye, EyeOff, Users } from "lucide-react";
+import type { z } from "zod";
 
-const signupSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  pwBatchId: z.string().min(1, "PW Batch ID is required"),
-  rivalCode: z.string().min(4, "Rival Code must be at least 4 characters"),
-});
+type SignUpFormData = z.infer<typeof signUpSchema>;
 
 export default function SignUp() {
   const [, setLocation] = useLocation();
+  const { login } = useAuth();
   const { toast } = useToast();
-  const [userCount, setUserCount] = useState<number>(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const { data: countData } = useQuery({
-    queryKey: ["/api/auth/user-count"],
-  });
-
-  const form = useForm<z.infer<typeof signupSchema>>({
-    resolver: zodResolver(signupSchema),
+  const form = useForm<SignUpFormData>({
+    resolver: zodResolver(signUpSchema),
     defaultValues: {
       name: "",
       email: "",
@@ -47,193 +40,205 @@ export default function SignUp() {
     },
   });
 
-  const signupMutation = useMutation({
-    mutationFn: async (data: z.infer<typeof signupSchema>) => {
-      return await apiRequest("POST", "/api/auth/signup", data);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Account created",
-        description: "Welcome to the battlefield!",
+  const onSubmit = async (data: SignUpFormData) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
       });
-      setLocation("/signin");
-    },
-    onError: (error: any) => {
-      toast({
-        variant: "destructive",
-        title: "Signup failed",
-        description: error.message || "Could not create account",
-      });
-    },
-  });
 
-  const onSubmit = (values: z.infer<typeof signupSchema>) => {
-    signupMutation.mutate(values);
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.message || "Sign up failed");
+      }
+
+      login(result.user);
+      toast({
+        title: "Welcome to Rivals!",
+        description: "Your account has been created successfully.",
+      });
+      setLocation("/");
+    } catch (error: any) {
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const currentCount = countData?.count || 0;
-  const isFull = currentCount >= 2;
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-4">
-          <div className="flex items-center justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <Lock className="w-8 h-8 text-primary" />
-            </div>
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 rounded-xl bg-primary flex items-center justify-center">
+            <Swords className="w-8 h-8 text-primary-foreground" />
           </div>
-          <div className="text-center space-y-2">
-            <CardTitle className="text-3xl font-bold tracking-tight">Join the Rivalry</CardTitle>
-            <CardDescription className="text-base">
-              Create your account and enter the battlefield
+          <div>
+            <CardTitle className="text-2xl font-bold">Join Rivals</CardTitle>
+            <CardDescription className="mt-2">
+              Create your account to start competing
             </CardDescription>
-          </div>
-          <div className="flex items-center justify-center gap-2 p-3 bg-muted rounded-md">
-            <Users className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {isFull ? (
-                <span className="text-destructive">Full - No new signups</span>
-              ) : (
-                <span className="text-foreground">{currentCount}/2 slots filled</span>
-              )}
-            </span>
           </div>
         </CardHeader>
         <CardContent>
-          {isFull ? (
-            <div className="text-center space-y-4">
-              <p className="text-muted-foreground">
-                The battlefield is full. Only 2 rivals are allowed.
-              </p>
-              <Button
-                onClick={() => setLocation("/signin")}
-                variant="outline"
-                className="w-full"
-                data-testid="button-go-signin"
-              >
-                Go to Sign In
-              </Button>
-            </div>
-          ) : (
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Your name"
+                        data-testid="input-name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        placeholder="your@email.com"
+                        data-testid="input-email"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div className="relative">
                         <Input
-                          placeholder="Enter your name"
-                          data-testid="input-name"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="your@email.com"
-                          data-testid="input-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           placeholder="Create a password"
                           data-testid="input-password"
                           {...field}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="pwBatchId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>PW Batch ID</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Your Physics Wallah batch ID"
-                          data-testid="input-batch-id"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="rivalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rival Code</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            placeholder="Enter shared rival code"
-                            className="text-center font-mono text-lg tracking-wider"
-                            data-testid="input-rival-code"
-                            {...field}
-                          />
-                          <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Both rivals must use the same code to link accounts
-                      </p>
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={signupMutation.isPending}
-                  data-testid="button-signup"
-                >
-                  {signupMutation.isPending ? "Creating Account..." : "Create Account"}
-                </Button>
-                <div className="text-center">
-                  <Button
-                    type="button"
-                    variant="link"
-                    onClick={() => setLocation("/signin")}
-                    className="text-sm"
-                    data-testid="link-signin"
-                  >
-                    Already have an account? Sign in
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                          data-testid="button-toggle-password"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <Eye className="w-4 h-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="pwBatchId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>PW Batch ID</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., PW2024-MHT"
+                        data-testid="input-batch"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Your Physics Wallah batch identifier
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="rivalCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      <div className="flex items-center gap-2">
+                        <span>Rival Code</span>
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your battle code"
+                        data-testid="input-rival-code"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription className="text-xs">
+                      Share this code with your rival to pair up (max 2 users per code)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isLoading}
+                data-testid="button-signup"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  "Create Account"
+                )}
+              </Button>
+            </form>
+          </Form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link
+                href="/signin"
+                className="font-medium text-primary hover:underline"
+                data-testid="link-signin"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

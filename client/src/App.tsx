@@ -1,31 +1,41 @@
-import { Switch, Route, Redirect } from "wouter";
-import { useEffect } from "react";
+import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Layout from "@/components/layout";
-import ProtectedRoute from "@/components/protected-route";
-import SignUp from "@/pages/signup";
-import SignIn from "@/pages/signin";
-import Dashboard from "@/pages/dashboard";
-import PWBattle from "@/pages/pw-battle";
-import ProgressPage from "@/pages/progress";
-import SchoolPage from "@/pages/school";
-import AchievementsPage from "@/pages/achievements";
-import AdminDBPage from "@/pages/admin-db";
-import SettingsPage from "@/pages/settings";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { ThemeProvider } from "@/lib/theme";
+import { ProtectedRoute } from "@/components/protected-route";
+import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
-import { loadTheme, applyTheme } from "@/lib/themes";
+import SignIn from "@/pages/signin";
+import SignUp from "@/pages/signup";
+import BattleArena from "@/pages/battle-arena";
+import Dashboard from "@/pages/dashboard";
+import Achievements from "@/pages/achievements";
+import School from "@/pages/school";
+import Chat from "@/pages/chat";
+import Settings from "@/pages/settings";
+import ManageContent from "@/pages/manage-content";
 
-function Router() {
+function AppRoutes() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
   return (
     <Switch>
-      <Route path="/">
-        <Redirect to="/dashboard" />
-      </Route>
-      <Route path="/signup" component={SignUp} />
       <Route path="/signin" component={SignIn} />
+      <Route path="/signup" component={SignUp} />
+      <Route path="/">
+        <ProtectedRoute>
+          <Layout>
+            <BattleArena />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
       <Route path="/dashboard">
         <ProtectedRoute>
           <Layout>
@@ -33,45 +43,38 @@ function Router() {
           </Layout>
         </ProtectedRoute>
       </Route>
-      <Route path="/pw-battle">
+      <Route path="/achievements">
         <ProtectedRoute>
           <Layout>
-            <PWBattle />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/progress">
-        <ProtectedRoute>
-          <Layout>
-            <ProgressPage />
+            <Achievements />
           </Layout>
         </ProtectedRoute>
       </Route>
       <Route path="/school">
         <ProtectedRoute>
           <Layout>
-            <SchoolPage />
+            <School />
           </Layout>
         </ProtectedRoute>
       </Route>
-      <Route path="/achievements">
+      <Route path="/chat">
         <ProtectedRoute>
           <Layout>
-            <AchievementsPage />
-          </Layout>
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin">
-        <ProtectedRoute>
-          <Layout>
-            <AdminDBPage />
+            <Chat />
           </Layout>
         </ProtectedRoute>
       </Route>
       <Route path="/settings">
         <ProtectedRoute>
           <Layout>
-            <SettingsPage />
+            <Settings />
+          </Layout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/manage">
+        <ProtectedRoute>
+          <Layout>
+            <ManageContent />
           </Layout>
         </ProtectedRoute>
       </Route>
@@ -81,17 +84,16 @@ function Router() {
 }
 
 function App() {
-  useEffect(() => {
-    const theme = loadTheme();
-    applyTheme(theme);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <AppRoutes />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
