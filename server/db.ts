@@ -11,5 +11,14 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Clean up DATABASE_URL - remove quotes, URL decoding, and psql prefix if present
+let databaseUrl = process.env.DATABASE_URL;
+// Remove surrounding quotes
+databaseUrl = databaseUrl.replace(/^["']|["']$/g, '');
+// URL decode
+databaseUrl = decodeURIComponent(databaseUrl);
+// Remove "psql " prefix if present
+databaseUrl = databaseUrl.replace(/^psql\s+/, '');
+
+export const pool = new Pool({ connectionString: databaseUrl });
 export const db = drizzle({ client: pool, schema });
