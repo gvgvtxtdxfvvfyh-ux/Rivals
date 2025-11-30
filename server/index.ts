@@ -2,9 +2,23 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { migrate } from "drizzle-orm/neon-serverless/migrator";
+import { db } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Auto-run migrations on startup
+async function initializeDatabase() {
+  try {
+    console.log("Running database migrations...");
+    await migrate(db, { migrationsFolder: "drizzle" });
+    console.log("Database migrations completed successfully");
+  } catch (error) {
+    console.error("Failed to run migrations:", error);
+    // Don't exit - let app start anyway in case migrations already ran
+  }
+}
 
 declare module "http" {
   interface IncomingMessage {
@@ -60,6 +74,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize database with migrations
+  await initializeDatabase();
+  
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

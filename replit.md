@@ -67,10 +67,11 @@ Preferred communication style: Simple, everyday language.
 ### Data Storage Solutions
 
 **Database**
-- PostgreSQL via Neon serverless driver
+- **Neon Serverless PostgreSQL** (via DATABASE_URL environment variable)
 - Drizzle ORM for type-safe database access
 - Schema-first approach with Drizzle-Zod integration
 - WebSocket connection pooling for serverless environments
+- Auto-migrations on app startup using Drizzle migrations
 
 **Schema Design**
 - Users table: authentication, profile data, rival matching via rivalCode
@@ -88,9 +89,11 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Database Service**
-- Neon Serverless Postgres (DATABASE_URL environment variable required)
-- Connection pooling via @neondatabase/serverless
-- WebSocket constructor override for Node.js compatibility
+- Neon Serverless Postgres - connection via DATABASE_URL environment variable
+- The app automatically reads DATABASE_URL and connects to Neon's pooler
+- Works on Replit (development), Vercel, Render, and any other platform
+- Connection pooling via @neondatabase/serverless with WebSocket support
+- Automatic migrations run on app startup (no manual db:push needed in production)
 
 **Authentication Libraries**
 - jsonwebtoken for JWT creation/verification
